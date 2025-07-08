@@ -1,0 +1,16 @@
+[project]
+name = "pydidit2-backend"
+version = "0.1.0"
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+authors = [
+    { name = "Adam J. Lincoln", email = "adamjlincoln@gmail.com" },
+]
+dependencies = [
+]
+
+[tool.poetry]
+packages = [
+    { include = "pydiditbackend" },
+]
