@@ -70,9 +70,35 @@ def put(
     else:
         return execute(session)
 
+def delete(
+    model: models.Base,
+    *,
+    session: sqlalchemy_sessionmaker | None = None,
+) -> None:
+    """Delete an instance."""
+    def execute(session: sqlalchemy_sessionmaker) -> None:
+        session.delete(model)  # type: ignore[attr-defined]
+
+    if session is None:
+        with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
+            execute(session)
+    else:
+        execute(session)
+
 """
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["PYDIDIT_DB_URL"])))
+    with sessionmaker() as session:  # noqa: F821
+        print(get(models.Todo, session=session))
+        new_todo = models.Todo(  # type: ignore[attr-defined]
+            description="testing delete",
+            state=models.enums.State.active,
+        )
+        put(new_todo, session=session)
+        print(new_todo)
+        print(get(models.Todo, session=session))
+        delete(new_todo, session=session)
+        print(get(models.Todo, session=session))
     put(models.Todo(  # type: ignore[attr-defined]
         description="fake show from",
         state=models.enums.State.active,
