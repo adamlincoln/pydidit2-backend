@@ -1,3 +1,4 @@
+# ruff: noqa: FIX002, T201, ERA001, TD002, TD003, TD004, TD006, RUF100
 """The primary API for pydiditbackend."""
 
 import os
@@ -21,32 +22,76 @@ def prepare(provided_sessionmaker: sqlalchemy_sessionmaker) -> None:
     models.prepare(provided_sessionmaker)
 
 @overload
-def get(model: str) -> Iterable[models.Base]:
+def get(
+    model: str,
+    *,
+    session: sqlalchemy_sessionmaker | None = None,
+) -> Iterable[models.Base]:
     ...
 
 @overload
-def get(model: models.Base) -> Iterable[models.Base]:
+def get(
+    model: models.Base,
+    *,
+    session: sqlalchemy_sessionmaker | None = None,
+) -> Iterable[models.Base]:
     ...
 
-def get(model):
+def get(model, *, session=None):
     """Get instances."""
     model = getattr(models, model) if isinstance(model, str) else model
     query = select(model)
     if hasattr(model, "display_position"):
         query = query.order_by(model.display_position)
-    with sessionmaker() as session:  # noqa: F821
-        return session.scalars(query).all()
 
-def put(model: models.Base) -> models.Base:
+    def execute(session: sqlalchemy_sessionmaker) -> Iterable[models.Base]:
+        return session.scalars(query).all()  # type: ignore[attr-defined]
+
+    if session is None:
+        with sessionmaker() as session:  # noqa: F821, PLR1704
+            return execute(session)
+    else:
+        return execute(session)
+
+def put(
+    model: models.Base,
+    *,
+    session: sqlalchemy_sessionmaker | None = None,
+) -> models.Base:
     """Put an instance."""
-    with sessionmaker() as session, session.begin():  # noqa: F821
-        session.add(model)
-    return model
+    def execute(session: sqlalchemy_sessionmaker) -> models.Base:
+        session.add(model)  # type: ignore[attr-defined]
+        return model
+
+    if session is None:
+        with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
+            return execute(session)
+    else:
+        return execute(session)
 
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["DB_URL"])))
-    print(get("Todo"))
+    with sessionmaker() as session:  # noqa: F821
+        print(get(models.Todo, session=session))  # type: ignore[attr-defined]
+        print([(todo, todo.notes) for todo in get(models.Todo, session=session)])  # type: ignore[attr-defined]
+    #print(get(models.Todo))
+    #print(get(models.Tag))
     #put(models.Todo(  # type: ignore[attr-defined]
         #description="fake",
         #state=models.enums.State.active,
     #))
+    #note = put(models.Note(  # type: ignore[attr-defined]
+        #text="This is an awesome note 2",
+    #))
+    #with sessionmaker() as session, session.begin():  # noqa: F821
+        #note = put(
+            #models.Note(  # type: ignore[attr-defined]
+                #text="This is an awesome note 3",
+            #),
+            #session=session,
+        #)
+        #todo = get(
+            #models.Todo,
+            #session=session,
+        #)[0]
+        #todo.notes.append(note)
