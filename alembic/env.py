@@ -53,7 +53,7 @@ def run_migrations_online() -> None:
 
     """
     ini_config = config.get_section(config.config_ini_section, {})
-    if (db_url := os.environ.get("DB_URL")):
+    if (db_url := os.environ.get("PYDIDIT_DB_URL")):
         ini_config["sqlalchemy.url"] = db_url
 
     connectable = engine_from_config(

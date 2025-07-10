@@ -72,7 +72,7 @@ def put(
 
 """
 if __name__ == "__main__":
-    prepare(sqlalchemy_sessionmaker(create_engine(os.environ["DB_URL"])))
+    prepare(sqlalchemy_sessionmaker(create_engine(os.environ["PYDIDIT_DB_URL"])))
     put(models.Todo(  # type: ignore[attr-defined]
         description="fake show from",
         state=models.enums.State.active,
