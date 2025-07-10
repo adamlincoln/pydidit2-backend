@@ -70,6 +70,7 @@ def put(
     else:
         return execute(session)
 
+"""
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["DB_URL"])))
     put(models.Todo(  # type: ignore[attr-defined]
@@ -81,7 +82,6 @@ if __name__ == "__main__":
     print(get(models.Todo))
     print([todo.due for todo in get(models.Todo)])
 
-"""
     with sessionmaker() as session:  # noqa: F821
         print(get(models.Project, session=session)[0].contain_projects)  # type: ignore[attr-defined, index]
         print(get(models.Project, session=session)[0].contained_by_projects)  # type: ignore[attr-defined, index]
