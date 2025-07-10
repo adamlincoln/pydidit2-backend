@@ -67,6 +67,20 @@ project_prereq_todo = Table(
     Column("todo_id", ForeignKey("todo.id"), primary_key=True),
 )
 
+project_contain_project = Table(
+    "project_contain_project",
+    Base.metadata,
+    Column("parent_id", ForeignKey("project.id"), primary_key=True),
+    Column("child_id", ForeignKey("project.id"), primary_key=True),
+)
+
+project_contain_todo = Table(
+    "project_contain_todo",
+    Base.metadata,
+    Column("project_id", ForeignKey("project.id"), primary_key=True),
+    Column("todo_id", ForeignKey("todo.id"), primary_key=True),
+)
+
 class Todo(Base):
     """The Todo model."""
 
@@ -102,6 +116,10 @@ class Todo(Base):
     dependent_projects: Mapped[list["Project"]] = relationship(
         secondary=project_prereq_todo,
         back_populates="prereq_todos",
+    )
+    contained_by_projects: Mapped[list["Project"]] = relationship(
+        secondary=project_contain_todo,
+        back_populates="contain_todos",
     )
     notes: Mapped[list["Note"]] = relationship(
         secondary=todo_note,
@@ -150,6 +168,10 @@ class Project(Base):
     prereq_todos: Mapped[list[Todo]] = relationship(
         secondary=project_prereq_todo,
         back_populates="dependent_projects",
+    )
+    contain_todos: Mapped[list[Todo]] = relationship(
+        secondary=project_contain_todo,
+        back_populates="contained_by_projects",
     )
     notes: Mapped[list["Note"]] = relationship(
         secondary=project_note,

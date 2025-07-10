@@ -71,52 +71,58 @@ def put(
 
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["DB_URL"])))
-    #with sessionmaker() as session:  # noqa: F821
-        #print(get(models.Todo, session=session))  # type: ignore[attr-defined]
-        #print([
-            #(todo, todo.notes)  # type: ignore[attr-defined]
-            #for todo
-            #in get(models.Todo, session=session)  # type: ignore[attr-defined]
-        #])
-        #print([
-            #(todo, todo.prereq_todos)  # type: ignore[attr-defined]
-            #for todo
-            #in get(models.Todo, session=session)  # type: ignore[attr-defined]
-        #])
-        #print([
-            #(todo, todo.dependent_todos)  # type: ignore[attr-defined]
-            #for todo
-            #in get(models.Todo, session=session)  # type: ignore[attr-defined]
-        #])
-    #print(get(models.Todo))
-    #print(get(models.Project))
-    #with sessionmaker() as session:
-        #print(get(models.Project, session=session)[0].dependent_todos)
-        #print(get(models.Todo, session=session)[0].prereq_projects)
+    with sessionmaker() as session:  # noqa: F821
+        print(get(models.Project, session=session)[0].contain_todos)  # type: ignore[attr-defined, index]
+        print(get(models.Todo, session=session)[0].contained_by_projects)  # type: ignore[attr-defined, index]
+
+"""
+    with sessionmaker() as session:  # noqa: F821
+        print(get(models.Todo, session=session))  # type: ignore[attr-defined]
+        print([
+            (todo, todo.notes)  # type: ignore[attr-defined]
+            for todo
+            in get(models.Todo, session=session)  # type: ignore[attr-defined]
+        ])
+        print([
+            (todo, todo.prereq_todos)  # type: ignore[attr-defined]
+            for todo
+            in get(models.Todo, session=session)  # type: ignore[attr-defined]
+        ])
+        print([
+            (todo, todo.dependent_todos)  # type: ignore[attr-defined]
+            for todo
+            in get(models.Todo, session=session)  # type: ignore[attr-defined]
+        ])
+    print(get(models.Todo))
+    print(get(models.Project))
+    with sessionmaker() as session:
+        print(get(models.Project, session=session)[0].dependent_todos)
+        print(get(models.Todo, session=session)[0].prereq_projects)
     with sessionmaker() as session:  # noqa: F821
         print(get(models.Project, session=session)[0].prereq_todos)  # type: ignore[attr-defined, index]
         print(get(models.Todo, session=session)[0].dependent_projects)  # type: ignore[attr-defined, index]
-    #print(get(models.Tag))
-    #put(models.Todo(  # type: ignore[attr-defined]
-        #description="fake",
-        #state=models.enums.State.active,
-    #))
-    #put(models.Project(  # type: ignore[attr-defined]
-        #description="fakeproject1",
-        #state=models.enums.State.active,
-    #))
-    #note = put(models.Note(  # type: ignore[attr-defined]
-        #text="This is an awesome note 2",
-    #))
-    #with sessionmaker() as session, session.begin():  # noqa: F821
-        #note = put(
-            #models.Note(  # type: ignore[attr-defined]
-                #text="This is an awesome note 3",
-            #),
-            #session=session,
-        #)
-        #todo = get(
-            #models.Todo,
-            #session=session,
-        #)[0]
-        #todo.notes.append(note)
+    print(get(models.Tag))
+    put(models.Todo(  # type: ignore[attr-defined]
+        description="fake",
+        state=models.enums.State.active,
+    ))
+    put(models.Project(  # type: ignore[attr-defined]
+        description="fakeproject1",
+        state=models.enums.State.active,
+    ))
+    note = put(models.Note(  # type: ignore[attr-defined]
+        text="This is an awesome note 2",
+    ))
+    with sessionmaker() as session, session.begin():  # noqa: F821
+        note = put(
+            models.Note(  # type: ignore[attr-defined]
+                text="This is an awesome note 3",
+            ),
+            session=session,
+        )
+        todo = get(
+            models.Todo,
+            session=session,
+        )[0]
+        todo.notes.append(note)
+"""
