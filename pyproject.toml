@@ -8,9 +8,45 @@ authors = [
     { name = "Adam J. Lincoln", email = "adamjlincoln@gmail.com" },
 ]
 dependencies = [
+    "sqlalchemy (>=2.0.41,<3.0.0)",
+    "alembic (>=1.16.2,<2.0.0)",
+    "inflect (>=7.5.0,<8.0.0)"
 ]
 
 [tool.poetry]
 packages = [
     { include = "pydiditbackend" },
 ]
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.12.2"
+mypy = "^1.16.1"
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+pytest-randomly = "^3.16.0"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D203",
+    "D212",
+    "EXE002",
+]
+
+[tool.alembic]
+# path to migration scripts.
+# this is typically a path given in POSIX (e.g. forward slashes)
+# format, relative to the token %(here)s which refers to the location of this
+# ini file
+script_location = "%(here)s/alembic"
+# This section defines scripts or Python functions that are run
+# on newly generated revision scripts.  See the documentation for further
+# detail and examples
+# [[tool.alembic.post_write_hooks]]
+# lint with attempts to fix using "ruff" - use the exec runner,
+# execute a binary
+# name = "ruff"
+# type = "exec"
+# executable = "%(here)s/.venv/bin/ruff"
+# options = "check --fix REVISION_SCRIPT_FILENAME"
