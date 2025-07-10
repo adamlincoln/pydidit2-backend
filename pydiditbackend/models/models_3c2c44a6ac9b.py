@@ -25,6 +25,13 @@ todo_tag = Table(
     Column("tag_id", ForeignKey("tag.id"), primary_key=True),
 )
 
+todo_prereq_todo = Table(
+    "todo_prereq_todo",
+    Base.metadata,
+    Column("todo_id", ForeignKey("todo.id"), primary_key=True),
+    Column("prereq_id", ForeignKey("todo.id"), primary_key=True),
+)
+
 class Todo(Base):
     """The Todo model."""
 
@@ -40,6 +47,18 @@ class Todo(Base):
     )
     display_position: Mapped[int] = mapped_column(
         default=get_new_lowest_display_position,
+    )
+    prereq_todos: Mapped[list["Todo"]] = relationship(
+        secondary=todo_prereq_todo,
+        back_populates="dependent_todos",
+        primaryjoin=id == todo_prereq_todo.c.todo_id,
+        secondaryjoin=id == todo_prereq_todo.c.prereq_id,
+    )
+    dependent_todos: Mapped[list["Todo"]] = relationship(
+        secondary=todo_prereq_todo,
+        back_populates="prereq_todos",
+        primaryjoin=id == todo_prereq_todo.c.prereq_id,
+        secondaryjoin=id == todo_prereq_todo.c.todo_id,
     )
     notes: Mapped[list["Note"]] = relationship(
         secondary=todo_note,

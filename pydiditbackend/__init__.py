@@ -74,6 +74,12 @@ if __name__ == "__main__":
     with sessionmaker() as session:  # noqa: F821
         print(get(models.Todo, session=session))  # type: ignore[attr-defined]
         print([(todo, todo.notes) for todo in get(models.Todo, session=session)])  # type: ignore[attr-defined]
+        print([(todo, todo.prereq_todos) for todo in get(models.Todo, session=session)])  # type: ignore[attr-defined]
+        print([
+            (todo, todo.dependent_todos)  # type: ignore[attr-defined]
+            for todo
+            in get(models.Todo, session=session)  # type: ignore[attr-defined]
+        ])
     #print(get(models.Todo))
     #print(get(models.Tag))
     #put(models.Todo(  # type: ignore[attr-defined]
