@@ -173,6 +173,18 @@ class Project(Base):
         secondary=project_contain_todo,
         back_populates="contained_by_projects",
     )
+    contain_projects: Mapped[list["Project"]] = relationship(
+        secondary=project_contain_project,
+        back_populates="contained_by_projects",
+        primaryjoin=id == project_contain_project.c.parent_id,
+        secondaryjoin=id == project_contain_project.c.child_id,
+    )
+    contained_by_projects: Mapped[list["Project"]] = relationship(
+        secondary=project_contain_project,
+        back_populates="contain_projects",
+        primaryjoin=id == project_contain_project.c.child_id,
+        secondaryjoin=id == project_contain_project.c.parent_id,
+    )
     notes: Mapped[list["Note"]] = relationship(
         secondary=project_note,
         back_populates="projects",

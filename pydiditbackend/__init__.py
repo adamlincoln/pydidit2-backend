@@ -72,10 +72,13 @@ def put(
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["DB_URL"])))
     with sessionmaker() as session:  # noqa: F821
-        print(get(models.Project, session=session)[0].contain_todos)  # type: ignore[attr-defined, index]
-        print(get(models.Todo, session=session)[0].contained_by_projects)  # type: ignore[attr-defined, index]
+        print(get(models.Project, session=session)[0].contain_projects)  # type: ignore[attr-defined, index]
+        print(get(models.Project, session=session)[0].contained_by_projects)  # type: ignore[attr-defined, index]
 
 """
+    with sessionmaker() as session:  # noqa: F821
+        print(get(models.Project, session=session)[0].contain_todos)  # type: ignore[attr-defined, index]
+        print(get(models.Todo, session=session)[0].contained_by_projects)  # type: ignore[attr-defined, index]
     with sessionmaker() as session:  # noqa: F821
         print(get(models.Todo, session=session))  # type: ignore[attr-defined]
         print([
