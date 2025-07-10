@@ -10,7 +10,6 @@ authors = [
 dependencies = [
     "sqlalchemy (>=2.0.41,<3.0.0)",
     "alembic (>=1.16.2,<2.0.0)",
-    "inflect (>=7.5.0,<8.0.0)"
 ]
 
 [tool.poetry]
