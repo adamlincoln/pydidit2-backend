@@ -25,11 +25,32 @@ todo_tag = Table(
     Column("tag_id", ForeignKey("tag.id"), primary_key=True),
 )
 
+project_note = Table(
+    "project_note",
+    Base.metadata,
+    Column("project_id", ForeignKey("project.id"), primary_key=True),
+    Column("note_id", ForeignKey("note.id"), primary_key=True),
+)
+
+project_tag = Table(
+    "project_tag",
+    Base.metadata,
+    Column("project_id", ForeignKey("project.id"), primary_key=True),
+    Column("tag_id", ForeignKey("tag.id"), primary_key=True),
+)
+
 todo_prereq_todo = Table(
     "todo_prereq_todo",
     Base.metadata,
     Column("todo_id", ForeignKey("todo.id"), primary_key=True),
     Column("prereq_id", ForeignKey("todo.id"), primary_key=True),
+)
+
+project_prereq_project = Table(
+    "project_prereq_project",
+    Base.metadata,
+    Column("project_id", ForeignKey("project.id"), primary_key=True),
+    Column("prereq_id", ForeignKey("project.id"), primary_key=True),
 )
 
 class Todo(Base):
@@ -66,10 +87,51 @@ class Todo(Base):
     )
     tags: Mapped[list["Tag"]] = relationship(
         secondary=todo_tag,
+        back_populates="todos",
     )
 
     def __repr__(self) -> str:
         return f'<Todo id={self.id} display_position={self.display_position} {shorten(self.description, 20, placeholder="...")}>'  # noqa: E501
+
+class Project(Base):
+    """The Project model."""
+
+    __tablename__ = "project"
+
+    id: Mapped[int] = mapped_column(autoincrement=True, primary_key=True)
+    description: Mapped[str] = mapped_column(Unicode(255))
+    state: Mapped[State]
+    created_at: Mapped[datetime] = mapped_column(default=func.now())
+    modified_at: Mapped[datetime] = mapped_column(
+        default=func.now(),
+        onupdate=func.now(),
+    )
+    display_position: Mapped[int] = mapped_column(
+        default=get_new_lowest_display_position,
+    )
+    prereq_projects: Mapped[list["Project"]] = relationship(
+        secondary=project_prereq_project,
+        back_populates="dependent_projects",
+        primaryjoin=id == project_prereq_project.c.project_id,
+        secondaryjoin=id == project_prereq_project.c.prereq_id,
+    )
+    dependent_projects: Mapped[list["Project"]] = relationship(
+        secondary=project_prereq_project,
+        back_populates="prereq_projects",
+        primaryjoin=id == project_prereq_project.c.prereq_id,
+        secondaryjoin=id == project_prereq_project.c.project_id,
+    )
+    notes: Mapped[list["Note"]] = relationship(
+        secondary=project_note,
+        back_populates="projects",
+    )
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary=project_tag,
+        back_populates="projects",
+    )
+
+    def __repr__(self) -> str:
+        return f'<Project id={self.id} display_position={self.display_position} {shorten(self.description, 20, placeholder="...")}>'  # noqa: E501
 
 class Note(Base):
     """The Note model."""
@@ -85,6 +147,10 @@ class Note(Base):
     )
     todos: Mapped[list[Todo]] = relationship(
         secondary=todo_note,
+        back_populates="notes",
+    )
+    projects: Mapped[list[Project]] = relationship(
+        secondary=project_note,
         back_populates="notes",
     )
 
@@ -105,6 +171,10 @@ class Tag(Base):
     )
     todos: Mapped[list[Todo]] = relationship(
         secondary=todo_tag,
+        back_populates="tags",
+    )
+    projects: Mapped[list[Project]] = relationship(
+        secondary=project_tag,
         back_populates="tags",
     )
 
