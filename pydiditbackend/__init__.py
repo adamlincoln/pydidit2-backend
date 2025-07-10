@@ -3,6 +3,7 @@
 
 import os
 from collections.abc import Iterable
+from datetime import datetime
 from typing import overload
 
 from sqlalchemy import create_engine, select
@@ -71,11 +72,19 @@ def put(
 
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["DB_URL"])))
+    put(models.Todo(  # type: ignore[attr-defined]
+        description="fake show from",
+        state=models.enums.State.active,
+        show_from=datetime.fromisoformat("2025-12-01T10:00:00Z"),
+        due=datetime.fromisoformat("2025-12-02T11:00:00Z"),
+    ))
+    print(get(models.Todo))
+    print([todo.due for todo in get(models.Todo)])
+
+"""
     with sessionmaker() as session:  # noqa: F821
         print(get(models.Project, session=session)[0].contain_projects)  # type: ignore[attr-defined, index]
         print(get(models.Project, session=session)[0].contained_by_projects)  # type: ignore[attr-defined, index]
-
-"""
     with sessionmaker() as session:  # noqa: F821
         print(get(models.Project, session=session)[0].contain_todos)  # type: ignore[attr-defined, index]
         print(get(models.Todo, session=session)[0].contained_by_projects)  # type: ignore[attr-defined, index]

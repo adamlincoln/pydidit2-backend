@@ -94,6 +94,8 @@ class Todo(Base):
         default=func.now(),
         onupdate=func.now(),
     )
+    show_from: Mapped[datetime | None]
+    due: Mapped[datetime | None]
     display_position: Mapped[int] = mapped_column(
         default=get_new_lowest_display_position,
     )
@@ -146,6 +148,8 @@ class Project(Base):
         default=func.now(),
         onupdate=func.now(),
     )
+    show_from: Mapped[datetime | None]
+    due: Mapped[datetime | None]
     display_position: Mapped[int] = mapped_column(
         default=get_new_lowest_display_position,
     )

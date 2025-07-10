@@ -55,6 +55,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
         sa.Column("modified_at", sa.DateTime(), nullable=False),
+        sa.Column("show_from", sa.DateTime(), nullable=True),
         sa.Column("display_position", sa.BigInteger(), nullable=False, unique=True),
     )
 
