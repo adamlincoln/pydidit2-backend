@@ -90,6 +90,12 @@ if __name__ == "__main__":
         #])
     #print(get(models.Todo))
     #print(get(models.Project))
+    #with sessionmaker() as session:
+        #print(get(models.Project, session=session)[0].dependent_todos)
+        #print(get(models.Todo, session=session)[0].prereq_projects)
+    with sessionmaker() as session:  # noqa: F821
+        print(get(models.Project, session=session)[0].prereq_todos)  # type: ignore[attr-defined, index]
+        print(get(models.Todo, session=session)[0].dependent_projects)  # type: ignore[attr-defined, index]
     #print(get(models.Tag))
     #put(models.Todo(  # type: ignore[attr-defined]
         #description="fake",

@@ -46,11 +46,25 @@ todo_prereq_todo = Table(
     Column("prereq_id", ForeignKey("todo.id"), primary_key=True),
 )
 
+todo_prereq_project = Table(
+    "todo_prereq_project",
+    Base.metadata,
+    Column("todo_id", ForeignKey("todo.id"), primary_key=True),
+    Column("project_id", ForeignKey("project.id"), primary_key=True),
+)
+
 project_prereq_project = Table(
     "project_prereq_project",
     Base.metadata,
     Column("project_id", ForeignKey("project.id"), primary_key=True),
     Column("prereq_id", ForeignKey("project.id"), primary_key=True),
+)
+
+project_prereq_todo = Table(
+    "project_prereq_todo",
+    Base.metadata,
+    Column("project_id", ForeignKey("project.id"), primary_key=True),
+    Column("todo_id", ForeignKey("todo.id"), primary_key=True),
 )
 
 class Todo(Base):
@@ -75,11 +89,19 @@ class Todo(Base):
         primaryjoin=id == todo_prereq_todo.c.todo_id,
         secondaryjoin=id == todo_prereq_todo.c.prereq_id,
     )
+    prereq_projects: Mapped[list["Project"]] = relationship(
+        secondary=todo_prereq_project,
+        back_populates="dependent_todos",
+    )
     dependent_todos: Mapped[list["Todo"]] = relationship(
         secondary=todo_prereq_todo,
         back_populates="prereq_todos",
         primaryjoin=id == todo_prereq_todo.c.prereq_id,
         secondaryjoin=id == todo_prereq_todo.c.todo_id,
+    )
+    dependent_projects: Mapped[list["Project"]] = relationship(
+        secondary=project_prereq_todo,
+        back_populates="prereq_todos",
     )
     notes: Mapped[list["Note"]] = relationship(
         secondary=todo_note,
@@ -120,6 +142,14 @@ class Project(Base):
         back_populates="prereq_projects",
         primaryjoin=id == project_prereq_project.c.prereq_id,
         secondaryjoin=id == project_prereq_project.c.project_id,
+    )
+    dependent_todos: Mapped[list[Todo]] = relationship(
+        secondary=todo_prereq_project,
+        back_populates="prereq_projects",
+    )
+    prereq_todos: Mapped[list[Todo]] = relationship(
+        secondary=project_prereq_todo,
+        back_populates="dependent_projects",
     )
     notes: Mapped[list["Note"]] = relationship(
         secondary=project_note,
