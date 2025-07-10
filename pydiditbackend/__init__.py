@@ -26,6 +26,7 @@ def prepare(provided_sessionmaker: sqlalchemy_sessionmaker) -> None:
 def get(
     model: str,
     *,
+    filter_by: dict[str, int | str] | None = None,
     session: sqlalchemy_sessionmaker | None = None,
 ) -> Iterable[models.Base]:
     ...
@@ -34,14 +35,17 @@ def get(
 def get(
     model: models.Base,
     *,
+    filter_by: dict[str, int | str] | None = None,
     session: sqlalchemy_sessionmaker | None = None,
 ) -> Iterable[models.Base]:
     ...
 
-def get(model, *, session=None):
+def get(model, *, filter_by=None, session=None):
     """Get instances."""
     model = getattr(models, model) if isinstance(model, str) else model
     query = select(model)
+    if filter_by is not None:
+        query = query.filter_by(**filter_by)
     if hasattr(model, "display_position"):
         query = query.order_by(model.display_position)
 
@@ -55,14 +59,14 @@ def get(model, *, session=None):
         return execute(session)
 
 def put(
-    model: models.Base,
+    instance: models.Base,
     *,
     session: sqlalchemy_sessionmaker | None = None,
 ) -> models.Base:
     """Put an instance."""
     def execute(session: sqlalchemy_sessionmaker) -> models.Base:
-        session.add(model)  # type: ignore[attr-defined]
-        return model
+        session.add(instance)  # type: ignore[attr-defined]
+        return instance
 
     if session is None:
         with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
@@ -70,14 +74,39 @@ def put(
     else:
         return execute(session)
 
+@overload
 def delete(
-    model: models.Base,
+    instance: models.Base,
     *,
     session: sqlalchemy_sessionmaker | None = None,
 ) -> None:
+    ...
+
+@overload
+def delete(
+    model_name: str,
+    instance_id: int,
+    *,
+    session: sqlalchemy_sessionmaker | None = None,
+) -> None:
+    ...
+
+def delete(
+    *args,
+    **kwargs,
+) -> None:
     """Delete an instance."""
+    session = kwargs.get("session")
+    if len(args) == 1:
+        instance = args[0]
+    else:
+        instance = get(
+            args[0],
+            filter_by={"id": args[1]},
+            session=None if session is None else session,
+        )[0]
     def execute(session: sqlalchemy_sessionmaker) -> None:
-        session.delete(model)  # type: ignore[attr-defined]
+        session.delete(instance)  # type: ignore[attr-defined]
 
     if session is None:
         with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
