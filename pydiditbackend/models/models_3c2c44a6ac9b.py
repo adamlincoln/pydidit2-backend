@@ -135,6 +135,10 @@ class Todo(Base):
     def __repr__(self) -> str:
         return f'<Todo id={self.id} display_position={self.display_position} {shorten(self.description, 20, placeholder="...")}>'  # noqa: E501
 
+    @property
+    def primary_descriptor(self) -> str:
+        return "description"
+
 class Project(Base):
     """The Project model."""
 
@@ -201,6 +205,10 @@ class Project(Base):
     def __repr__(self) -> str:
         return f'<Project id={self.id} display_position={self.display_position} {shorten(self.description, 20, placeholder="...")}>'  # noqa: E501
 
+    @property
+    def primary_descriptor(self) -> str:
+        return "description"
+
 class Note(Base):
     """The Note model."""
 
@@ -225,6 +233,10 @@ class Note(Base):
     def __repr__(self) -> str:
         return f'<Note id={self.id} "{shorten(self.text, 20, placeholder="...")}">'
 
+    @property
+    def primary_descriptor(self) -> str:
+        return "text"
+
 class Tag(Base):
     """The Tag model."""
 
@@ -248,3 +260,7 @@ class Tag(Base):
 
     def __repr__(self) -> str:
         return f'<Tag id={self.id} "{shorten(self.name, 20, placeholder="...")}">'
+
+    @property
+    def primary_descriptor(self) -> str:
+        return "name"
