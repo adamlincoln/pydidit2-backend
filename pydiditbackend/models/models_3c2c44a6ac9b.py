@@ -18,6 +18,13 @@ todo_note = Table(
     Column("note_id", ForeignKey("note.id"), primary_key=True),
 )
 
+todo_tag = Table(
+    "todo_tag",
+    Base.metadata,
+    Column("todo_id", ForeignKey("todo.id"), primary_key=True),
+    Column("tag_id", ForeignKey("tag.id"), primary_key=True),
+)
+
 class Todo(Base):
     """The Todo model."""
 
@@ -36,6 +43,10 @@ class Todo(Base):
     )
     notes: Mapped[list["Note"]] = relationship(
         secondary=todo_note,
+        back_populates="todos",
+    )
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary=todo_tag,
     )
 
     def __repr__(self) -> str:
@@ -53,6 +64,10 @@ class Note(Base):
         default=func.now(),
         onupdate=func.now(),
     )
+    todos: Mapped[list[Todo]] = relationship(
+        secondary=todo_note,
+        back_populates="notes",
+    )
 
     def __repr__(self) -> str:
         return f'<Note id={self.id} "{shorten(self.text, 20, placeholder="...")}">'
@@ -69,3 +84,10 @@ class Tag(Base):
         default=func.now(),
         onupdate=func.now(),
     )
+    todos: Mapped[list[Todo]] = relationship(
+        secondary=todo_tag,
+        back_populates="tags",
+    )
+
+    def __repr__(self) -> str:
+        return f'<Tag id={self.id} "{shorten(self.name, 20, placeholder="...")}">'
