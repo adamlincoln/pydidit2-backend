@@ -113,7 +113,7 @@ def delete(
         instance = get(
             args[0],
             filter_by={"id": args[1]},
-            session=None if session is None else session,
+            session=session,
         )[0]
     def execute(session: sqlalchemy_sessionmaker) -> None:
         session.delete(instance)  # type: ignore[attr-defined]
@@ -153,7 +153,7 @@ def mark_completed(
         instance = get(
             args[0],
             filter_by={"id": args[1]},
-            session=None if session is None else session,
+            session=session,
         )[0]
     def execute(session: sqlalchemy_sessionmaker) -> None:
         setattr(instance, "state", models.enums.State.completed)
