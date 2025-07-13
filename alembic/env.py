@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
+from pydiditbackend.utils import build_rds_db_url
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -53,7 +54,7 @@ def run_migrations_online() -> None:
 
     """
     ini_config = config.get_section(config.config_ini_section, {})
-    if (db_url := os.environ.get("PYDIDIT_DB_URL")):
+    if (db_url := build_rds_db_url(os.environ.get("PYDIDIT_DB_URL"))):
         ini_config["sqlalchemy.url"] = db_url
 
     connectable = engine_from_config(

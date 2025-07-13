@@ -29,7 +29,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Unicode(length=255), nullable=False),
         sa.Column(
             "state",
-            sa.Enum(State),
+            sa.Enum(State, name="stateenum"),
             nullable=False,
         ),
         sa.Column("due", sa.DateTime(), nullable=True),
@@ -45,10 +45,7 @@ def upgrade() -> None:
         sa.Column("description", sa.Unicode(length=255), nullable=True),
         sa.Column(
             "state",
-            sa.Enum(
-                "active",
-                "completed",
-            ),
+            sa.Enum(State, name="stateenum"),
             nullable=False,
         ),
         sa.Column("due", sa.DateTime(), nullable=True),
