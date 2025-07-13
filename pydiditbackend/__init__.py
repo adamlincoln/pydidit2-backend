@@ -106,18 +106,18 @@ def delete(
     **kwargs,
 ) -> None:
     """Delete an instance."""
-    session = kwargs.get("session")
-    if len(args) == 1:
-        instance = args[0]
-    else:
-        instance = get(
-            args[0],
-            filter_by={"id": args[1]},
-            session=session,
-        )[0]
     def execute(session: sqlalchemy_sessionmaker) -> None:
+        if len(args) == 1:
+            instance = args[0]
+        else:
+            instance = get(
+                args[0],
+                filter_by={"id": args[1]},
+                session=session,
+            )[0]
         session.delete(instance)  # type: ignore[attr-defined]
 
+    session = kwargs.get("session")
     if session is None:
         with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
             execute(session)
@@ -146,18 +146,18 @@ def mark_completed(
     **kwargs,
 ) -> None:
     """Mark an instance as completed."""
-    session = kwargs.get("session")
-    if len(args) == 1:
-        instance = args[0]
-    else:
-        instance = get(
-            args[0],
-            filter_by={"id": args[1]},
-            session=session,
-        )[0]
     def execute(session: sqlalchemy_sessionmaker) -> None:
+        if len(args) == 1:
+            instance = args[0]
+        else:
+            instance = get(
+                args[0],
+                filter_by={"id": args[1]},
+                session=session,
+            )[0]
         setattr(instance, "state", models.enums.State.completed)
 
+    session = kwargs.get("session")
     if session is None:
         with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
             execute(session)
