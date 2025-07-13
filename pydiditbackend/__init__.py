@@ -27,6 +27,7 @@ def get(
     model: str,
     *,
     filter_by: dict[str, int | str] | None = None,
+    include_completed: bool = False,
     session: sqlalchemy_sessionmaker | None = None,
 ) -> Iterable[models.Base]:
     ...
@@ -36,16 +37,25 @@ def get(
     model: models.Base,
     *,
     filter_by: dict[str, int | str] | None = None,
+    include_completed: bool = False,
     session: sqlalchemy_sessionmaker | None = None,
 ) -> Iterable[models.Base]:
     ...
 
-def get(model, *, filter_by=None, session=None):
+def get(
+    model,
+    *,
+    filter_by=None,
+    include_completed=False,
+    session=None,
+):
     """Get instances."""
     model = getattr(models, model) if isinstance(model, str) else model
     query = select(model)
     if filter_by is not None:
         query = query.filter_by(**filter_by)
+    if not include_completed:
+        query = query.filter_by(state=models.enums.State.active)
     if hasattr(model, "display_position"):
         query = query.order_by(model.display_position)
 
@@ -114,10 +124,50 @@ def delete(
     else:
         execute(session)
 
+@overload
+def mark_completed(
+    instance: models.Base,
+    *,
+    session: sqlalchemy_sessionmaker | None = None,
+) -> None:
+    ...
+
+@overload
+def mark_completed(
+    model_name: str,
+    instance_id: int,
+    *,
+    session: sqlalchemy_sessionmaker | None = None,
+) -> None:
+    ...
+
+def mark_completed(
+    *args,
+    **kwargs,
+) -> None:
+    """Mark an instance as completed."""
+    session = kwargs.get("session")
+    if len(args) == 1:
+        instance = args[0]
+    else:
+        instance = get(
+            args[0],
+            filter_by={"id": args[1]},
+            session=None if session is None else session,
+        )[0]
+    def execute(session: sqlalchemy_sessionmaker) -> None:
+        setattr(instance, "state", models.enums.State.completed)
+
+    if session is None:
+        with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
+            execute(session)
+    else:
+        execute(session)
+
 """
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["PYDIDIT_DB_URL"])))
-    with sessionmaker() as session:  # noqa: F821
+    with sessionmaker() as session, sesson.begin():  # noqa: F821
         print(get(models.Todo, session=session))
         new_todo = models.Todo(  # type: ignore[attr-defined]
             description="testing delete",
