@@ -23,13 +23,11 @@ def handle_session(f: Callable[P, R]) -> Callable[P, R]:
     def wrapper(*args, **kwargs):
         if (session := kwargs.get("session")) is None:
             with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
-                print("making session", id(session))
                 kwargs["session"] = session
                 to_return = f(*args, **kwargs)
                 session.expunge_all()
                 return to_return
         else:
-            print("reusing session", id(session))
             return f(*args, **kwargs)
     return wrapper
 
