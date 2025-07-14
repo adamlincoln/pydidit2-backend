@@ -18,18 +18,24 @@ sessionmaker: sqlalchemy_sessionmaker
 P = ParamSpec("P")  # Represents the parameters of the decorated function
 R = TypeVar("R")    # Represents the return type of the decorated function
 
-def handle_session(f: Callable[P, R]) -> Callable[P, R]:
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if (session := kwargs.get("session")) is None:
-            with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
-                kwargs["session"] = session
-                to_return = f(*args, **kwargs)
-                session.expunge_all()
-                return to_return
-        else:
-            return f(*args, **kwargs)
-    return wrapper
+def handle_session(*args, expunge: bool = False):
+    def handle_session_inside(f: Callable[P, R]) -> Callable[P, R]:
+        @wraps(f)
+        def wrapper(*inside_args, **inside_kwargs):
+            if (session := inside_kwargs.get("session")) is None:
+                with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
+                    inside_kwargs["session"] = session
+                    to_return = f(*inside_args, **inside_kwargs)
+                    if expunge:
+                        session.expunge_all()
+                    return to_return
+            else:
+                return f(*inside_args, **inside_kwargs)
+        return wrapper
+    if len(args) > 0 and callable(args[0]):
+        return handle_session_inside(args[0])
+    else:
+        return handle_session_inside
 
 def prepare(provided_sessionmaker: sqlalchemy_sessionmaker) -> None:
     """
@@ -62,7 +68,7 @@ def get(
 ) -> Iterable[models.Base]:
     ...
 
-@handle_session
+@handle_session(expunge=True)
 def get(
     model,
     *,
