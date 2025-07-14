@@ -2,16 +2,36 @@
 """The primary API for pydiditbackend."""
 
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime
-from typing import overload
+from functools import wraps
+from typing import ParamSpec, TypeVar, overload
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker as sqlalchemy_sessionmaker
+from sqlalchemy.sql.expression import ColumnElement
 
 from pydiditbackend import models
 
 sessionmaker: sqlalchemy_sessionmaker
+
+P = ParamSpec("P")  # Represents the parameters of the decorated function
+R = TypeVar("R")    # Represents the return type of the decorated function
+
+def handle_session(f: Callable[P, R]) -> Callable[P, R]:
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if (session := kwargs.get("session")) is None:
+            with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
+                print("making session", id(session))
+                kwargs["session"] = session
+                to_return = f(*args, **kwargs)
+                session.expunge_all()
+                return to_return
+        else:
+            print("reusing session", id(session))
+            return f(*args, **kwargs)
+    return wrapper
 
 def prepare(provided_sessionmaker: sqlalchemy_sessionmaker) -> None:
     """
@@ -29,6 +49,7 @@ def get(
     filter_by: dict[str, int | str] | None = None,
     include_completed: bool = False,
     session: sqlalchemy_sessionmaker | None = None,
+    where: ColumnElement[bool] | None = None,
 ) -> Iterable[models.Base]:
     ...
 
@@ -39,50 +60,42 @@ def get(
     filter_by: dict[str, int | str] | None = None,
     include_completed: bool = False,
     session: sqlalchemy_sessionmaker | None = None,
+    where: ColumnElement[bool] | None = None,
 ) -> Iterable[models.Base]:
     ...
 
+@handle_session
 def get(
     model,
     *,
     filter_by=None,
     include_completed=False,
     session=None,
+    where=None,
 ):
     """Get instances."""
     model = getattr(models, model) if isinstance(model, str) else model
     query = select(model)
     if filter_by is not None:
         query = query.filter_by(**filter_by)
-    if not include_completed:
+    if not include_completed and hasattr(model, "state"):
         query = query.filter_by(state=models.enums.State.active)
+    if where is not None:
+        query = query.where(where)
     if hasattr(model, "display_position"):
         query = query.order_by(model.display_position)
 
-    def execute(session: sqlalchemy_sessionmaker) -> Iterable[models.Base]:
-        return session.scalars(query).all()  # type: ignore[attr-defined]
+    return session.scalars(query).all()  # type: ignore[attr-defined]
 
-    if session is None:
-        with sessionmaker() as session:  # noqa: F821, PLR1704
-            return execute(session)
-    else:
-        return execute(session)
-
+@handle_session
 def put(
     instance: models.Base,
     *,
     session: sqlalchemy_sessionmaker | None = None,
 ) -> models.Base:
     """Put an instance."""
-    def execute(session: sqlalchemy_sessionmaker) -> models.Base:
-        session.add(instance)  # type: ignore[attr-defined]
-        return instance
-
-    if session is None:
-        with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
-            return execute(session)
-    else:
-        return execute(session)
+    session.add(instance)  # type: ignore[attr-defined]
+    return instance
 
 @overload
 def delete(
@@ -101,28 +114,22 @@ def delete(
 ) -> None:
     ...
 
+@handle_session
 def delete(
     *args,
     **kwargs,
 ) -> None:
     """Delete an instance."""
-    def execute(session: sqlalchemy_sessionmaker) -> None:
-        if len(args) == 1:
-            instance = args[0]
-        else:
-            instance = get(
-                args[0],
-                filter_by={"id": args[1]},
-                session=session,
-            )[0]
-        session.delete(instance)  # type: ignore[attr-defined]
-
     session = kwargs.get("session")
-    if session is None:
-        with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
-            execute(session)
+    if len(args) == 1:
+        instance = args[0]
     else:
-        execute(session)
+        instance = get(
+            args[0],
+            filter_by={"id": args[1]},
+            session=session,
+        )[0]
+    session.delete(instance)  # type: ignore[attr-defined]
 
 @overload
 def mark_completed(
@@ -141,33 +148,43 @@ def mark_completed(
 ) -> None:
     ...
 
+@handle_session
 def mark_completed(
     *args,
     **kwargs,
 ) -> None:
     """Mark an instance as completed."""
-    def execute(session: sqlalchemy_sessionmaker) -> None:
-        if len(args) == 1:
-            instance = args[0]
-        else:
-            instance = get(
-                args[0],
-                filter_by={"id": args[1]},
-                session=session,
-            )[0]
-        setattr(instance, "state", models.enums.State.completed)
-
-    session = kwargs.get("session")
-    if session is None:
-        with sessionmaker() as session, session.begin():  # noqa: F821, PLR1704
-            execute(session)
+    if len(args) == 1:
+        instance = args[0]
     else:
-        execute(session)
+        session = kwargs.get("session")
+        instance = get(
+            args[0],
+            filter_by={"id": args[1]},
+            session=session,
+        )[0]
+    instance.state = models.enums.State.completed
 
 """
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["PYDIDIT_DB_URL"])))
-    with sessionmaker() as session, sesson.begin():  # noqa: F821
+
+    print(get(models.Todo))
+    tag_name = "for testing"
+    put(models.Tag(name=tag_name))
+    with sessionmaker() as session, session.begin():
+        new_todo = models.Todo(  # type: ignore[attr-defined]
+            description="testing delete",
+            state=models.enums.State.active,
+        )
+        new_todo.tags.append(get("Tag", filter_by={"name": tag_name}, session=session)[0])
+        put(new_todo, session=session)
+    print(get(models.Todo))
+    delete(get("Todo", where=models.Todo.tags.any(models.Tag.name == tag_name))[0])
+    print(get(models.Todo))
+    delete(get(models.Tag, filter_by={"name": tag_name})[0])
+
+    with sessionmaker() as session, session.begin():  # noqa: F821
         print(get(models.Todo, session=session))
         new_todo = models.Todo(  # type: ignore[attr-defined]
             description="testing delete",
@@ -178,6 +195,7 @@ if __name__ == "__main__":
         print(get(models.Todo, session=session))
         delete(new_todo, session=session)
         print(get(models.Todo, session=session))
+
     put(models.Todo(  # type: ignore[attr-defined]
         description="fake show from",
         state=models.enums.State.active,
