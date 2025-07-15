@@ -89,7 +89,7 @@ def get(
     if hasattr(model, "display_position"):
         query = query.order_by(model.display_position)
 
-    return session.scalars(query).all()  # type: ignore[attr-defined]
+    return session.scalars(query).unique().all()  # type: ignore[attr-defined]
 
 @handle_session
 def put(
@@ -172,6 +172,18 @@ def mark_completed(
 """
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["PYDIDIT_DB_URL"])))
+
+    project_description = "test project"
+    put(models.Project(description=project_description, state=models.enums.State.active))
+    project = get("Project", filter_by={"description": project_description})[0]
+    with sessionmaker() as session, session.begin():
+        display_position = models.util.get_new_lowest_display_position(models.Todo.display_position)
+        for i in range(10):
+            todo = models.Todo(description=f"test project todo {i}", display_position=display_position + i)
+            todo.contained_by_projects.append(project)
+            put(todo, session=session)
+    print(get("Project", filter_by={"description": project_description})[0])
+    print(get("Project", filter_by={"description": project_description})[0].contain_todos)
 
     print(get(models.Todo))
     tag_name = "for testing"
