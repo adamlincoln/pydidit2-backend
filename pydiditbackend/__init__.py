@@ -50,7 +50,6 @@ def prepare(provided_sessionmaker: sqlalchemy_sessionmaker) -> None:
 def get(
     model: str,
     *,
-    filter=None,
     filter_by: dict[str, int | str] | None = None,
     include_completed: bool = False,
     session: sqlalchemy_sessionmaker | None = None,
@@ -62,7 +61,6 @@ def get(
 def get(
     model: models.Base,
     *,
-    filter=None,
     filter_by: dict[str, int | str] | None = None,
     include_completed: bool = False,
     session: sqlalchemy_sessionmaker | None = None,
@@ -74,7 +72,6 @@ def get(
 def get(
     model,
     *,
-    filter=None,
     filter_by=None,
     include_completed=False,
     session=None,
@@ -83,8 +80,6 @@ def get(
     """Get instances."""
     model = getattr(models, model) if isinstance(model, str) else model
     query = select(model)
-    if filter is not None:
-        query = query.filter(filter)
     if filter_by is not None:
         query = query.filter_by(**filter_by)
     if not include_completed and hasattr(model, "state"):
