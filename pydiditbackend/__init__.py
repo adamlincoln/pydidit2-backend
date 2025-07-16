@@ -169,9 +169,33 @@ def mark_completed(
         )[0]
     instance.state = models.enums.State.completed
 
+@handle_session(expunge=True)
+def search(
+    *args,
+    **kwargs,
+) -> list[models.Base]:
+    """Search all models by primary descriptor."""
+    session = kwargs.get("session")
+    instances = []
+    for model_name in ("Todo", "Project", "Tag", "Note"):
+        model = getattr(models, model_name)
+        instances.extend(get(
+            model_name,
+            where=getattr(
+                model,
+                model.primary_descriptor,
+            ).ilike(f"%{args[0]}%"),
+            session=session,
+        ))
+    return instances
+
 """
 if __name__ == "__main__":
     prepare(sqlalchemy_sessionmaker(create_engine(os.environ["PYDIDIT_DB_URL"])))
+
+    print(get("Todo"))
+    print(get("Project"))
+    print(search("test"))
 
     project_description = "test project"
     put(models.Project(description=project_description, state=models.enums.State.active))
