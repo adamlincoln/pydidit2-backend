@@ -223,7 +223,10 @@ def move(
             )
         instance = instances[0]
 
-    new_display_position = args[-1]
+    if isinstance(args[-1], models.Base):
+        new_display_position = args[-1].display_position
+    else:
+        new_display_position = args[-1]
 
     # special cases
     if new_display_position == "start" or new_display_position == "end":
