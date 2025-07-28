@@ -22,13 +22,20 @@ class AlembicVersion(Base):
 
     version_num: Mapped[str] = mapped_column(primary_key=True)
 
-def prepare(sessionmaker: sqlalchemy_sessionmaker) -> None:
+def prepare(
+    sessionmaker: sqlalchemy_sessionmaker,
+    *,
+    version_override=None,
+) -> None:
     """Prepare the models."""
     prepare_sessionmaker(sessionmaker)
-    with sessionmaker() as session:
-        version_num = session.execute(
-            select(AlembicVersion.version_num),
-        ).one().version_num
+    if version_override is None:
+        with sessionmaker() as session:
+            version_num = session.execute(
+                select(AlembicVersion.version_num),
+            ).one().version_num
+    else:
+        version_num = version_override
     versioned_models = import_module(
         f"pydiditbackend.models.models_{version_num}",
     )
