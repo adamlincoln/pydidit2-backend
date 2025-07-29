@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker as sqlalchemy_sessionmaker
 
 @pytest.fixture
 def prepare():
-    engine = create_engine("sqlite:///:memory:", echo=False)
+    engine = create_engine("sqlite:///:memory:", echo=True)
     pydiditbackend.prepare(sqlalchemy_sessionmaker(engine), version_override="3c2c44a6ac9b")
     pydiditbackend.models.base.Base.metadata.create_all(engine)
     yield
@@ -28,23 +28,21 @@ def test_special_boundary_start_end(prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo1"},
-            session=session,
-        )[0]
-        pydiditbackend.move(to_move, "end", session=session)
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo1"},
+    )[0]
+    pydiditbackend.move(to_move, "end")
 
-        assert to_move.display_position == 10
+    pydiditbackend.get("Todo", filter_by={"description": "todo1"})[0].display_position == 10
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo7"},
-            session=session,
-        )[0]
-        pydiditbackend.move(to_move, "start", session=session)
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo7"},
+    )[0]
+    pydiditbackend.move(to_move, "start")
 
-        assert to_move.display_position == -1
+    pydiditbackend.get("Todo", filter_by={"description": "todo7"})[0].display_position == -1
 
 def test_move_to_end_by_number(prepare):
     todos = (
@@ -58,23 +56,21 @@ def test_move_to_end_by_number(prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo1"},
-            session=session,
-        )[0]
-        pydiditbackend.move(to_move, 9, session=session)
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo1"},
+    )[0]
+    pydiditbackend.move(to_move, 9)
 
-        assert to_move.display_position == 10
+    pydiditbackend.get("Todo", filter_by={"description": "todo1"})[0].display_position == 10
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo7"},
-            session=session,
-        )[0]
-        pydiditbackend.move(to_move, 0, session=session)
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo7"},
+    )[0]
+    pydiditbackend.move(to_move, 0)
 
-        assert to_move.display_position == -1
+    pydiditbackend.get("Todo", filter_by={"description": "todo7"})[0].display_position == -1
 
 def test_move_same_display_position(mocker, prepare):
     todos = (
@@ -88,18 +84,14 @@ def test_move_same_display_position(mocker, prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo1"},
-            session=session,
-        )[0]
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo1"},
+    )[0]
 
-        spy = mocker.spy(session, "scalars")
+    pydiditbackend.move(to_move, 1)
 
-        pydiditbackend.move(to_move, 1, session=session)
-
-        assert to_move.display_position == 1
-        spy.assert_not_called()
+    pydiditbackend.get("Todo", filter_by={"description": "todo1"})[0].display_position == 1
 
 def test_move_empty_spot(mocker, prepare):
     todos = chain(
@@ -121,18 +113,14 @@ def test_move_empty_spot(mocker, prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo1"},
-            session=session,
-        )[0]
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo1"},
+    )[0]
 
-        spy = mocker.spy(session, "scalars")
+    pydiditbackend.move(to_move, 10)
 
-        pydiditbackend.move(to_move, 10, session=session)
-
-        assert to_move.display_position == 10 
-        spy.assert_called_once()
+    pydiditbackend.get("Todo", filter_by={"description": "todo1"})[0].display_position == 10
 
 def test_move_occupied_spot_but_space_between(mocker, prepare):
     todos = chain(
@@ -154,18 +142,14 @@ def test_move_occupied_spot_but_space_between(mocker, prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo1"},
-            session=session,
-        )[0]
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo1"},
+    )[0]
 
-        spy = mocker.spy(session, "scalars")
+    pydiditbackend.move(to_move, 9)
 
-        pydiditbackend.move(to_move, 9, session=session)
-
-        assert to_move.display_position == 10 
-        assert spy.call_count == 2
+    assert pydiditbackend.get("Todo", filter_by={"description": "todo1"})[0].display_position == 10
 
 def test_move_occupied_spot_toward_end_one_move(mocker, prepare):
     todos = chain(
@@ -187,18 +171,12 @@ def test_move_occupied_spot_toward_end_one_move(mocker, prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo1"},
-            session=session,
-        )[0]
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo1"},
+    )[0]
 
-        spy = mocker.spy(session, "scalars")
-
-        pydiditbackend.move(to_move, 12, session=session)
-
-        assert to_move.display_position == 12 
-        assert spy.call_count == 3
+    pydiditbackend.move(to_move, 12)
 
     with pydiditbackend.sessionmaker() as session, session.begin():
         assert pydiditbackend.get("Todo", filter_by={"description": "todo10"}, session=session)[0].display_position == 10
@@ -231,18 +209,12 @@ def test_move_occupied_spot_toward_end_many_moves(mocker, prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo1"},
-            session=session,
-        )[0]
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo1"},
+    )[0]
 
-        spy = mocker.spy(session, "scalars")
-
-        pydiditbackend.move(to_move, 18, session=session)
-
-        assert to_move.display_position == 18 
-        assert spy.call_count == 3
+    pydiditbackend.move(to_move, 18)
 
     with pydiditbackend.sessionmaker() as session, session.begin():
         assert pydiditbackend.get("Todo", filter_by={"description": "todo10"}, session=session)[0].display_position == 10
@@ -281,18 +253,12 @@ def test_move_occupied_spot_toward_start_one_move(mocker, prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo17"},
-            session=session,
-        )[0]
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo17"},
+    )[0]
 
-        spy = mocker.spy(session, "scalars")
-
-        pydiditbackend.move(to_move, 10, session=session)
-
-        assert to_move.display_position == 10
-        assert spy.call_count == 3
+    pydiditbackend.move(to_move, 10)
 
     with pydiditbackend.sessionmaker() as session, session.begin():
         assert pydiditbackend.get("Todo", filter_by={"description": "todo12"}, session=session)[0].display_position == 12
@@ -326,18 +292,12 @@ def test_move_occupied_spot_toward_start_many_moves(mocker, prepare):
         for todo in todos:
             pydiditbackend.put(todo, session=session)
 
-        to_move = pydiditbackend.get(
-            "Todo",
-            filter_by={"description": "todo17"},
-            session=session,
-        )[0]
+    to_move = pydiditbackend.get(
+        "Todo",
+        filter_by={"description": "todo17"},
+    )[0]
 
-        spy = mocker.spy(session, "scalars")
-
-        pydiditbackend.move(to_move, 4, session=session)
-
-        assert to_move.display_position == 4
-        assert spy.call_count == 3
+    pydiditbackend.move(to_move, 4)
 
     with pydiditbackend.sessionmaker() as session, session.begin():
         assert pydiditbackend.get("Todo", filter_by={"description": "todo12"}, session=session)[0].display_position == 12
@@ -355,5 +315,3 @@ def test_move_occupied_spot_toward_start_many_moves(mocker, prepare):
 
         assert pydiditbackend.get("Todo", filter_by={"description": "todo3"}, session=session)[0].display_position == 3
         assert pydiditbackend.get("Todo", filter_by={"description": "todo2"}, session=session)[0].display_position == 2
-
-

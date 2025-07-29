@@ -19,6 +19,8 @@ sessionmaker: sqlalchemy_sessionmaker
 P = ParamSpec("P")  # Represents the parameters of the decorated function
 R = TypeVar("R")    # Represents the return type of the decorated function
 
+MOVE_OFFSET = 1000000000
+
 def handle_session(*args, expunge: bool = False):
     def handle_session_inside(f: Callable[P, R]) -> Callable[P, R]:
         @wraps(f)
@@ -198,134 +200,161 @@ def _move_to_boundary(
         else boundary_display_position + 1
     )
 
-@handle_session
+
 def move(
     *args,
-    **kwargs,
 ) -> None:
-    """Move an instance to a new display position."""
-    session = kwargs.get("session")
-    if len(args) < 2:
-        raise ValueError(
-            f"You must provide at least two args."
-        )
-    if len(args) == 2:
-        instance = args[0]
-    else:
-        instances = get(
-            args[0],
-            filter_by={"id": args[1]},
-            session=session,
-        )
-        if len(instances) != 1:
+    """Move an instance to a new display position. Unlike other backend function, this cannot be called with an existing session."""
+    fix_offsets = False
+    with sessionmaker() as session, session.begin():
+        if len(args) < 2:
             raise ValueError(
-                f"There must be exactly one {args[0]} to move."
+                f"You must provide at least two args."
             )
-        instance = instances[0]
+        if len(args) == 2:
+            instance = args[0]
+            instance = session.merge(instance)
+        else:
+            try:
+                instance = session.scalars(
+                    select(getattr(models, args[0])).filter_by(id=args[1])
+                ).unique().one()
+            except NoResultFound:
+                raise ValueError(
+                    f"There must be exactly one {args[0]} to move."
+                )
 
-    if isinstance(args[-1], models.Base):
-        new_display_position = args[-1].display_position
-    else:
-        new_display_position = args[-1]
+        instance_id = instance.id
 
-    # special cases
-    if new_display_position == "start" or new_display_position == "end":
-        _move_to_boundary(instance, session, start=(new_display_position == "start"))
-        return
+        if isinstance(args[-1], models.Base):
+            new_display_position = args[-1].display_position
+        else:
+            new_display_position = args[-1]
 
-    new_display_position = int(new_display_position)
+        # special cases
+        if new_display_position == "start" or new_display_position == "end":
+            _move_to_boundary(instance, session, start=(new_display_position == "start"))
+            return
 
-    # no real change
-    if instance.display_position == new_display_position:
-        return
+        new_display_position = int(new_display_position)
 
-    display_position_column = getattr(
-        type(instance),
-        "display_position",
-    )
+        # no real change
+        if instance.display_position == new_display_position:
+            return
 
-    # look for empty spot
-    try:
-        blocking_instance = session.scalars(
-            select(type(instance)).filter_by(
-                display_position=new_display_position,
-            )
-        ).unique().one()
-    except NoResultFound:
-        instance.display_position = new_display_position
-        return
-
-    toward_start = instance.display_position > new_display_position
-
-    try:
-        next_instance = session.scalars(
-            select(type(instance)).where(
-                display_position_column < new_display_position
-                if toward_start
-                else display_position_column > new_display_position
-            ).order_by(
-                desc(display_position_column) if toward_start else display_position_column
-            ).limit(1)).unique().one()
-    except NoResultFound:
-        # we asked for the start or the end
-        instance.display_position = (
-            new_display_position - 1
-            if toward_start
-            else new_display_position + 1
+        display_position_column = getattr(
+            type(instance),
+            "display_position",
         )
-    else:
-        if abs(new_display_position - next_instance.display_position) > 1:
-            # there's room in between the requested position and the next position, so use it
+
+        # look for empty spot
+        try:
+            blocking_instance = session.scalars(
+                select(type(instance)).filter_by(
+                    display_position=new_display_position,
+                )
+            ).unique().one()
+        except NoResultFound:
+            instance.display_position = new_display_position
+            return
+        blocking_instance_id = blocking_instance.id
+
+        toward_start = instance.display_position > new_display_position
+
+        try:
+            next_instance = session.scalars(
+                select(type(instance)).where(
+                    display_position_column < new_display_position
+                    if toward_start
+                    else display_position_column > new_display_position
+                ).order_by(
+                    desc(display_position_column) if toward_start else display_position_column
+                ).limit(1)).unique().one()
+        except NoResultFound:
+            # we asked for the start or the end
             instance.display_position = (
                 new_display_position - 1
                 if toward_start
                 else new_display_position + 1
             )
         else:
-            # we need to move stuff to make room
+            if abs(new_display_position - next_instance.display_position) > 1:
+                # there's room in between the requested position and the next position, so use it
+                instance.display_position = (
+                    new_display_position - 1
+                    if toward_start
+                    else new_display_position + 1
+                )
+            else:
+                # we need to move stuff to make room
 
-            # This is the logic if we are moving toward the start:
-            # Find highest empty display position between the input instance and new_display_position
-            # (which is occupied by blocking_instance), not inclusive of these endpoints.
-            # If there are none, then the *low* limit of the range we need to move is the
-            # input instance (except that we will be moving the input instance, so we really need to stop
-            # moving at the one next to the input instance, on the high side).  If there is one, then the
-            # low limit of the range we need to move is the one next to the empty display position, on the
-            # high side.  The high limit of the range we need to move is blocking_instance.  All within the
-            # range are moved one display position *lower*.  Then the input instance is assigned new_display_position.
+                # This is the logic if we are moving toward the start:
+                # Find highest empty display position between the input instance and new_display_position
+                # (which is occupied by blocking_instance), not inclusive of these endpoints.
+                # If there are none, then the *low* limit of the range we need to move is the
+                # input instance (except that we will be moving the input instance, so we really need to stop
+                # moving at the one next to the input instance, on the high side).  If there is one, then the
+                # low limit of the range we need to move is the one next to the empty display position, on the
+                # high side.  The high limit of the range we need to move is blocking_instance.  All within the
+                # range are moved one display position *lower*.  Then the input instance is assigned new_display_position.
 
-            in_between_query_range = and_(
-                display_position_column > blocking_instance.display_position,
-                display_position_column < instance.display_position,
-            ) if toward_start else and_(
-                display_position_column < blocking_instance.display_position,
-                display_position_column > instance.display_position,
-            )
+                # The logic for moving toward the end is reserved.
 
-            in_between_order_by = display_position_column if toward_start else desc(display_position_column)
+                fix_offsets = True
+                updated_instance_ids = set()
 
-            in_between_instances = session.scalars(
-                select(type(instance)).where(in_between_query_range).order_by(in_between_order_by)
-            ).unique().all()
+                in_between_query_range = and_(
+                    display_position_column > blocking_instance.display_position,
+                    display_position_column < instance.display_position,
+                ) if toward_start else and_(
+                    display_position_column < blocking_instance.display_position,
+                    display_position_column > instance.display_position,
+                )
 
-            display_position_range = range(
-                blocking_instance.display_position + (1 if toward_start else -1),
-                instance.display_position,
-                1 if toward_start else -1,
-            )
+                in_between_order_by = display_position_column if toward_start else desc(display_position_column)
 
-            for in_between_instance, display_position in zip(
-                in_between_instances,
-                display_position_range,
-            ):
-                if in_between_instance.display_position == display_position:
-                    in_between_instance.display_position += 1 if toward_start else -1
-                else:
-                    break
+                in_between_instances = session.scalars(
+                    select(type(instance)).where(in_between_query_range).order_by(in_between_order_by)
+                ).unique().all()
 
-            blocking_instance.display_position += 1 if toward_start else -1
+                display_position_range = range(
+                    blocking_instance.display_position + (1 if toward_start else -1),
+                    instance.display_position,
+                    1 if toward_start else -1,
+                )
 
-            instance.display_position = new_display_position
+                for in_between_instance, display_position in zip(
+                    in_between_instances,
+                    display_position_range,
+                ):
+                    if in_between_instance.display_position == display_position:
+                        in_between_instance.display_position += (1 if toward_start else -1) + MOVE_OFFSET
+                        updated_instance_ids.add(in_between_instance.id)
+                    else:
+                        break
+
+                blocking_instance.display_position += (1 if toward_start else -1) + MOVE_OFFSET
+                instance.display_position = new_display_position + MOVE_OFFSET
+
+    # We have to play this offset game because sqlite, a DB we want to
+    # support, does not offer deferred unique constraints.
+    if fix_offsets:
+        with sessionmaker() as session, session.begin():
+            updated_instances = session.scalars(select(type(instance)).where(
+                type(instance).id.in_(updated_instance_ids)
+            )).unique().all()
+            for updated_instance in updated_instances:
+                updated_instance.display_position -= MOVE_OFFSET
+            if blocking_instance_id is not None:
+                blocking_instance = session.scalars(select(type(instance)).filter_by(
+                    id=blocking_instance_id,
+                )).unique().one()
+                blocking_instance.display_position -= MOVE_OFFSET
+
+            instance = session.scalars(select(type(instance)).filter_by(
+                id=instance_id,
+            )).unique().one()
+            instance.display_position -= MOVE_OFFSET
 
 @handle_session(expunge=True)
 def search(

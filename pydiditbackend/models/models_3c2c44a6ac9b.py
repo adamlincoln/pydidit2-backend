@@ -98,6 +98,7 @@ class Todo(Base):
     due: Mapped[datetime | None]
     display_position: Mapped[int] = mapped_column(
         default=get_new_lowest_display_position_default,
+        unique=True,
     )
     prereq_todos: Mapped[list["Todo"]] = relationship(
         secondary=todo_prereq_todo,
@@ -160,6 +161,7 @@ class Project(Base):
     due: Mapped[datetime | None]
     display_position: Mapped[int] = mapped_column(
         default=get_new_lowest_display_position_default,
+        unique=True,
     )
     prereq_projects: Mapped[list["Project"]] = relationship(
         secondary=project_prereq_project,
