@@ -7,7 +7,7 @@ from datetime import datetime
 from functools import wraps
 from typing import ParamSpec, TypeVar, overload
 
-from sqlalchemy import and_, create_engine, desc, select
+from sqlalchemy import and_, create_engine, desc, or_, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import sessionmaker as sqlalchemy_sessionmaker
 from sqlalchemy.sql.expression import ColumnElement
@@ -81,6 +81,7 @@ def get(
     *,
     filter_by=None,
     include_completed=False,
+    include_future_show_from=False,
     session=None,
     where=None,
 ):
@@ -91,6 +92,11 @@ def get(
         query = query.filter_by(**filter_by)
     if not include_completed and hasattr(model, "state"):
         query = query.filter_by(state=models.enums.State.active)
+    if not include_future_show_from and hasattr(model, "show_from"):
+        query = query.where(or_(
+            model.show_from is None,
+            model.show_from <= datetime.now(),
+        ))
     if where is not None:
         query = query.where(where)
     if hasattr(model, "display_position"):
@@ -139,6 +145,8 @@ def delete(
             args[0],
             filter_by={"id": args[1]},
             session=session,
+            include_completed=True,
+            include_future_show_from=True,
         )[0]
     session.delete(instance)  # type: ignore[attr-defined]
 
@@ -173,6 +181,7 @@ def mark_completed(
             args[0],
             filter_by={"id": args[1]},
             session=session,
+            include_future_show_from=True,
         )[0]
     instance.state = models.enums.State.completed
 
@@ -362,6 +371,7 @@ def search(
     **kwargs,
 ) -> list[models.Base]:
     """Search all models by primary descriptor."""
+    # TODO (alincoln) add switches to include completed or future show from
     session = kwargs.get("session")
     instances = []
     for model_name in ("Todo", "Project", "Tag", "Note"):
@@ -383,6 +393,17 @@ if __name__ == "__main__":
     print(get("Todo"))
     print(get("Project"))
     print(search("test"))
+
+    put(models.Todo(
+        description="fake show from 1234",
+        state=models.enums.State.active,
+        show_from=datetime.fromisoformat("2026-12-01T10:00:00Z"),
+        due=datetime.fromisoformat("2025-12-02T11:00:00Z"),
+    ))
+    the_todos = get("Todo", filter_by={"description":"fake show from 1234"}, include_future_show_from=True)
+    print(the_todos)
+    for el in the_todos:
+        delete("Todo", el.id)
 
     project_description = "test project"
     put(models.Project(description=project_description, state=models.enums.State.active))
