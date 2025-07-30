@@ -94,7 +94,7 @@ def get(
         query = query.filter_by(state=models.enums.State.active)
     if not include_future_show_from and hasattr(model, "show_from"):
         query = query.where(or_(
-            model.show_from is None,
+            model.show_from == None,
             model.show_from <= datetime.now(),
         ))
     if where is not None:
